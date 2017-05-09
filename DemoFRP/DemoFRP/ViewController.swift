@@ -51,10 +51,7 @@ final class ViewController: UIViewController, UITextFieldDelegate
         if textField == usernameField
         {
             passwordField.becomeFirstResponder()
-        }
-        else
-        {
-            textField.resignFirstResponder()
+            return false
         }
         
         return true
