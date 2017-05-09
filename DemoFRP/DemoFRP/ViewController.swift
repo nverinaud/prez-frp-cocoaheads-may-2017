@@ -3,20 +3,17 @@
 //  Copyright © 2017 Nicolas VERINAUD. All rights reserved.
 //
 
+import RxCocoa
 import RxSwift
 import SnapKit
 import UIKit
 
 final class ViewController: UIViewController, UITextFieldDelegate
 {
+    private let disposeBag = DisposeBag()
     private var usernameField: UITextField!
     private var passwordField: UITextField!
     private var loginButton: UIButton!
-    
-    deinit
-    {
-        NotificationCenter.default.removeObserver(self)
-    }
     
     override func loadView()
     {
@@ -39,11 +36,7 @@ final class ViewController: UIViewController, UITextFieldDelegate
         view.addSubview(loginButton)
         
         setupConstraints()
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(updateUI), name: NSNotification.Name.UITextFieldTextDidChange, object: usernameField)
-        NotificationCenter.default.addObserver(self, selector: #selector(updateUI), name: NSNotification.Name.UITextFieldTextDidChange, object: passwordField)
-        
-        updateUI()
+        setupBindings()
     }
     
     func textFieldShouldReturn(_ textField: UITextField) -> Bool
@@ -51,10 +44,7 @@ final class ViewController: UIViewController, UITextFieldDelegate
         if textField == usernameField
         {
             passwordField.becomeFirstResponder()
-        }
-        else
-        {
-            textField.resignFirstResponder()
+            return false
         }
         
         return true
@@ -79,13 +69,16 @@ final class ViewController: UIViewController, UITextFieldDelegate
         }
     }
     
-    @objc
-    private func updateUI()
+    private func setupBindings()
     {
-        let loginButtonEnabled = usernameField.text?.isEmpty == false &&
-                                 passwordField.text?.isEmpty == false
+        let textIsEmpty: (String?) -> Bool = { $0?.isEmpty == true }
         
-        loginButton.isEnabled = loginButtonEnabled
+        let usernameEmpty = usernameField.rx.text.map(textIsEmpty)
+        let passwordEmpty = passwordField.rx.text.map(textIsEmpty)
+        
+        let loginButtonEnabled = Observable.combineLatest(usernameEmpty, passwordEmpty) { !$0 && !$1 }
+        
+        loginButtonEnabled.bind(to: loginButton.rx.isEnabled)
+            .addDisposableTo(disposeBag)
     }
 }
-
