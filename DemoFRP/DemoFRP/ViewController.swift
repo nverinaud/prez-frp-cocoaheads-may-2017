@@ -4,19 +4,17 @@
 //
 
 import RxSwift
+import RxCocoa
 import SnapKit
 import UIKit
 
 final class ViewController: UIViewController, UITextFieldDelegate
 {
+    private let disposeBag = DisposeBag()
+    
     private var usernameField: UITextField!
     private var passwordField: UITextField!
     private var loginButton: UIButton!
-    
-    deinit
-    {
-        NotificationCenter.default.removeObserver(self)
-    }
     
     override func loadView()
     {
@@ -40,10 +38,24 @@ final class ViewController: UIViewController, UITextFieldDelegate
         
         setupConstraints()
         
-        NotificationCenter.default.addObserver(self, selector: #selector(updateUI), name: NSNotification.Name.UITextFieldTextDidChange, object: usernameField)
-        NotificationCenter.default.addObserver(self, selector: #selector(updateUI), name: NSNotification.Name.UITextFieldTextDidChange, object: passwordField)
+        let username = usernameField.rx.text
+        let password = passwordField.rx.text
         
-        updateUI()
+        let isEmpty: (String?) -> Bool = { $0?.isEmpty == true }
+        
+        let usernameIsEmpty = username.map(isEmpty)
+        let passwordIsEmpty = password.map(isEmpty)
+        
+        let atLeastOneIsEmpty = Observable.combineLatest(usernameIsEmpty, passwordIsEmpty) { $0 || $1 }
+        
+        atLeastOneIsEmpty
+            .map { !$0 }
+            .bind(to: loginButton.rx.isEnabled)
+            .addDisposableTo(disposeBag)
+        
+//        atLeastOneIsEmpty.subscribe(onNext: { (atLeastOneIsEmpty) in
+//            self.loginButton.isEnabled = !atLeastOneIsEmpty
+//        }).addDisposableTo(disposeBag)
     }
     
     func textFieldShouldReturn(_ textField: UITextField) -> Bool
@@ -74,15 +86,6 @@ final class ViewController: UIViewController, UITextFieldDelegate
             make.top.equalTo(passwordField.snp.bottom).offset(14)
             make.size.centerX.equalTo(passwordField)
         }
-    }
-    
-    @objc
-    private func updateUI()
-    {
-        let loginButtonEnabled = usernameField.text?.isEmpty == false &&
-                                 passwordField.text?.isEmpty == false
-        
-        loginButton.isEnabled = loginButtonEnabled
     }
 }
 
